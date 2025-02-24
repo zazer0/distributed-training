@@ -1,5 +1,14 @@
 wandb==0.17.5
-torch==2.5.1
+# torch==2.5.1 # using sc version
 tqdm
+# datasets==3.2.0 # same as sc verson
+# transformers==4.48.0 # using sc version
+
+torch==2.6.0
+# numpy==2.2.2 # not used here
+transformers==4.48.2
+peft==0.14.0 # not used here (?)
 datasets==3.2.0
-transformers==4.48.0
+looseversion==1.3.0 # unsure if needed?
+torchvision==0.21.0 # needed for cycling utils!
+cycling_utils @ git+https://github.com/StrongResearch/cycling_utils.git

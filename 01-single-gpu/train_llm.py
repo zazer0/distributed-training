@@ -19,6 +19,7 @@ from transformers import (
     default_data_collator,
 )
 
+# INFO: will redirect everything to either stdout/error
 LOGGER = logging.getLogger(__name__)
 
 
@@ -43,13 +44,22 @@ def main():
     # Seed pytorch's RNG. See https://pytorch.org/docs/stable/notes/randomness.html
     torch.manual_seed(args.seed)
 
+    ### INFO: This grabs our model weights from SC's system!
+    # with open("../model_weight_ids.json") as modelIdFile:
+    #     SC_ID_MAP = json.load(modelIdFile)
+    # SC_MODEL_ID = SC_ID_MAP[args.model_name]
+    SC_MODEL_ID = _get_sc_model_id(args.model_name)
+    model_weights_path = f"/data/{SC_MODEL_ID}"
+
+    print("Loading model from", model_weights_path, "!")
+
     # Note: Initializing an **untrained** model
-    config = AutoConfig.from_pretrained(args.model_name, use_cache=False)
+    config = AutoConfig.from_pretrained(model_weights_path, use_cache=False)
     with device:
         model = AutoModelForCausalLM.from_config(config, torch_dtype=dtype)
     LOGGER.info(f"{sum(p.numel() for p in model.parameters())} model parameters")
 
-    train_data = _load_and_preprocess_data(args, config)
+    train_data = _load_and_preprocess_data(args, config, model_weights_path)
     LOGGER.info(f"{len(train_data)} training samples")
 
     # Standard pytorch dataset iterator
@@ -191,12 +201,13 @@ def main():
         state["epoch_step"] = 0
 
 
-def _load_and_preprocess_data(args, config):
+def _load_and_preprocess_data(args, config, model_weights_path):
     """
     Function created using code found in
     https://github.com/huggingface/transformers/blob/v4.45.1/examples/pytorch/language-modeling/run_clm_no_trainer.py
     """
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+
+    tokenizer = AutoTokenizer.from_pretrained(model_weights_path)
 
     data = datasets.load_dataset(args.dataset_name, trust_remote_code=True)
 
@@ -292,8 +303,10 @@ def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--experiment-name", default=None, required=True)
     parser.add_argument("-d", "--dataset-name", default=None, required=True)
-    parser.add_argument("-m", "--model-name", default=None, required=True)
-    parser.add_argument("--save-dir", default="../outputs")
+    # Assume the user wants to train our strongest model!
+    parser.add_argument("-m", "--model-name", default="DeepSeek-R1-Distill-Llama-70B")
+    # Place in hoisted homedir folder for now!
+    parser.add_argument("--save-dir", default="~/_distrib-outputs")
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--num-epochs", default=100, type=int)
     parser.add_argument("--lr", default=3e-5, type=float)
@@ -302,6 +315,19 @@ def _get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ckpt-freq", default=500, type=int)
     parser.add_argument("-s", "--seq-length", default=1024, type=int)
     return parser
+
+
+#### HELPERS: SPLIT OUT INTO UTILS FILE LATER
+
+def _get_sc_model_id(sc_model_name: str, id_map_path: str = "../model_weight_ids.json"):
+    with open(id_map_path) as modelIdFile:
+        SC_ID_MAP = json.load(modelIdFile)
+    SC_MODEL_ID = SC_ID_MAP[sc_model_name]
+    return SC_MODEL_ID
+
+
+# def _get_model_weights_path(sc_model_id: str):
+#     model_weights_path = f"/data/{SC_MODEL_ID}"
 
 
 if __name__ == "__main__":
