@@ -1,0 +1,12 @@
+isc_project_id = "31d7228d-5508-45f2-920e-9eadafe568b6"
+experiment_name = "01-basecase"
+gpus = 4
+compute_mode = "cycle"
+dataset_id_list = ["6c796efa-7063-4a74-99b8-aab1c728ad98"]
+command = '''
+source /root/dist-training/.venv/bin/activate && 
+python3 /root/dist-training/01-single-gpu/train_llm.py
+--experiment-name 01-basecase_$(date +%Y-%m-%dT%H-%M-%S)
+--dataset-name tatsu-lab/alpaca
+--model-name DeepSeek-R1-Distill-Qwen-1.5B
+--save-dir /root/_distrib-outputs'''
