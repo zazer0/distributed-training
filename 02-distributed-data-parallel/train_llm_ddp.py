@@ -55,9 +55,14 @@ def main():
 
     torch.manual_seed(args.seed)
 
-    # NOTE: assumes $HF_HOME is shared storage
+    # Get model weights path from SC system
+    SC_MODEL_ID = _get_sc_model_id(args.model_name, args.sc_name_to_id_map)
+    model_weights_path = f"/data/{SC_MODEL_ID}"
+    LOGGER.info(f"Loading model from {model_weights_path}")
+
+    # Note: Initializing an **untrained** model
     with rank0_first():
-        config = AutoConfig.from_pretrained(args.model_name, use_cache=False)
+        config = AutoConfig.from_pretrained(model_weights_path, use_cache=False)
         with device:
             model = AutoModelForCausalLM.from_config(config, torch_dtype=dtype)
     LOGGER.info(f"{sum(p.numel() for p in model.parameters())} model parameters")
@@ -66,7 +71,7 @@ def main():
 
     # NOTE: Assumes that $HF_HOME is shared storage
     with rank0_first():
-        train_data = _load_and_preprocess_data(args, config)
+        train_data = _load_and_preprocess_data(args, config, model_weights_path)
     LOGGER.info(f"{len(train_data)} training samples")
 
     dataloader = DataLoader(
@@ -208,12 +213,12 @@ def main():
         state["epoch_step"] = 0
 
 
-def _load_and_preprocess_data(args, config):
+def _load_and_preprocess_data(args, config, model_weights_path):
     """
     Function created using code found in
     https://github.com/huggingface/transformers/blob/v4.45.1/examples/pytorch/language-modeling/run_clm_no_trainer.py
     """
-    tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+    tokenizer = AutoTokenizer.from_pretrained(model_weights_path)
 
     data = datasets.load_dataset(args.dataset_name, trust_remote_code=True)
 
@@ -320,8 +325,11 @@ def _get_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser()
     parser.add_argument("-e", "--experiment-name", default=None, required=True)
     parser.add_argument("-d", "--dataset-name", default=None, required=True)
-    parser.add_argument("-m", "--model-name", default=None, required=True)
-    parser.add_argument("--save-dir", default="../outputs")
+    parser.add_argument("-m", "--model-name", default="DeepSeek-R1-Distill-Llama-70B")
+    parser.add_argument(
+        "-i", "--sc-name-to-id-map", default="/root/dist-training/model_weight_ids.json"
+    )
+    parser.add_argument("--save-dir", default="/root/_distrib-outputs")
     parser.add_argument("--seed", default=0, type=int)
     parser.add_argument("--num-epochs", default=100, type=int)
     parser.add_argument("--lr", default=3e-5, type=float)
@@ -330,6 +338,13 @@ def _get_parser() -> argparse.ArgumentParser:
     parser.add_argument("--ckpt-freq", default=500, type=int)
     parser.add_argument("-s", "--seq-length", default=1024, type=int)
     return parser
+
+
+def _get_sc_model_id(sc_model_name: str, id_map_path: str):
+    with open(id_map_path) as modelIdFile:
+        SC_ID_MAP = json.load(modelIdFile)
+    SC_MODEL_ID = SC_ID_MAP[sc_model_name]
+    return SC_MODEL_ID
 
 
 if __name__ == "__main__":
