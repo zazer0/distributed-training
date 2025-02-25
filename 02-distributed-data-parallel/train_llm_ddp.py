@@ -62,12 +62,30 @@ def main():
 
     # Note: Initializing an **untrained** model
     with rank0_first():
+        # If Rank0, we need to load the full weights at startup
         config = AutoConfig.from_pretrained(model_weights_path, use_cache=False)
-        with device:
-            model = AutoModelForCausalLM.from_config(config, torch_dtype=dtype)
-    LOGGER.info(f"{sum(p.numel() for p in model.parameters())} model parameters")
+        if rank == 0:
+            with device:
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_weights_path,
+                    config=config,
+                    torch_dtype=dtype
+                )
+        else:
+            # Else, we can just check the structure for now (much faster!)
+            with torch.device('meta'):
+                model = AutoModelForCausalLM.from_pretrained(
+                    model_weights_path,
+                    config=config,
+                    torch_dtype=dtype
+                )
 
+    LOGGER.info(f"{sum(p.numel() for p in model.parameters())} model parameters")
+    
+    # We're prepped; now we'll load it everywhere!
+    model = model.to(device)
     model = DistributedDataParallel(model, device_ids=[local_rank])
+
 
     # NOTE: Assumes that $HF_HOME is shared storage
     with rank0_first():
