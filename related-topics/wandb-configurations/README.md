@@ -9,7 +9,7 @@ This is the standard approach. You will only see system information from the nod
 ```python
 if rank == 0:
     wandb.init(
-        project="distributed-training-guide",
+        project="distrib-training",
         dir=exp_dir,
         id=args.experiment_name,
         name=args.experiment_name,
@@ -26,7 +26,7 @@ With this approach you can see system information from all nodes, and it scales 
 ```python
 if local_rank == 0:
     wandb.init(
-        project="distributed-training-guide",
+        project="distrib-training",
         dir=exp_dir / f"rank-{rank}",
         group=args.experiment_name,
         name=f"rank-{rank}",
@@ -51,7 +51,7 @@ This configuration is really useful for tracking as much information about your 
 
 ```python
 wandb.init(
-    project="distributed-training-guide",
+    project="distrib-training",
     dir=exp_dir / f"rank-{rank}",
     group=args.experiment_name,
     name=f"rank-{rank}",

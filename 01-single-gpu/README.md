@@ -151,7 +151,7 @@ When we resume a run, we tell wandb that we "must" initialize in resume mode.
 
 ```python
 wandb.init(
-    project="distributed-training-guide",
+    project="distrib-training",
     dir=exp_dir,
     name=args.experiment_name,
     id=args.experiment_name,

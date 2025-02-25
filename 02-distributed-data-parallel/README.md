@@ -21,18 +21,19 @@ torchrun --standalone \
 For multi node, see our [chapter on job launchers](../03-job-launchers/).
 
 Quick jump:
+
 - [How Distributed Training works](#how-distributed-training-works)
 - [Using torchrun](#using-torchrun-instead-of-python)
 - [Code Changes](#code-changes)
-    - [Calling dist.init_process_group() and torch.cuda.set_device()](#calling-distinit_process_group-and-torchcudaset_device)
-    - [Including rank in logging statements](#including-rank-in-logging-statements)
-    - [DistributedDataParallel (DDP)](#using-distributeddataparallel)
-    - [DistributedSampler](#using-distributedsampler)
-    - I/O related guards
-        - [Downloading model/data in rank 0 first](#downloading-model--data-in-rank-0-first)
-        - [Interacting with file system on rank 0 only](#only-creating-experiment-directory-on-rank-0)
-        - [wandb on rank 0 only](#wandb-runs-on-rank-0)
-        - [Checkpoints from rank 0 only](#save-checkpoint-on-rank-0)
+  - [Calling dist.init_process_group() and torch.cuda.set_device()](#calling-distinit_process_group-and-torchcudaset_device)
+  - [Including rank in logging statements](#including-rank-in-logging-statements)
+  - [DistributedDataParallel (DDP)](#using-distributeddataparallel)
+  - [DistributedSampler](#using-distributedsampler)
+  - I/O related guards
+    - [Downloading model/data in rank 0 first](#downloading-model--data-in-rank-0-first)
+    - [Interacting with file system on rank 0 only](#only-creating-experiment-directory-on-rank-0)
+    - [wandb on rank 0 only](#wandb-runs-on-rank-0)
+    - [Checkpoints from rank 0 only](#save-checkpoint-on-rank-0)
 - [Optimizing memory - Zero Redundancy](#optimizing-memory---zero-redundancy-optimizer)
 - [How multi node works](#how-multi-node-works)
 - [Shared storage - Managing your python virtual environment across nodes](#shared-storage---managing-your-python-virtual-environment-across-nodes)
@@ -52,6 +53,7 @@ Before we get into the changes required to do distributed training, let's think 
 Well distributed training with a GPU actually works the same way - we are splitting our workload (which is the batches from our dataset) over multiple GPUs. However we have an additional problem: how do we ensure that the model on all of our GPUs is the same?
 
 We can actually achieve this in a very clever way. For sake of simplicity let's assume:
+
 1. Our model and optimizer fully fit on every GPU
 2. We initialize our model the exact same way on all of our GPUs
 3. Our optimizer has the exact same settings on all of our GPUs
@@ -95,6 +97,7 @@ It will also set up some synchronization between the processes. Then each of the
 When running on multiple nodes, you need to run torchrun on every machine, but other than that it works exactly the same. See our [job launchers chapter](../03-job-launchers/) for how to do this.
 
 Here are some of the common CLI arguments to torchrun used throughout this guide:
+
 - `--standalone` argument is used when only running on a single node.
 - `--nnodes` is the number of nodes we are using, in this case 1, but once we go to multiple nodes, this will be > 1.
 - `--nproc-per-node` is the number of processes. `gpu` means to use all available GPUs.
@@ -119,7 +122,6 @@ You also need to add a `@record` (imported `from torch.distributed.elastic.multi
 pytorch by default tries to take advantage of all the cores available when doing computations, even when you are on the GPU. Since we have multiple processes running pytorch, if we didn't set `OMP_NUM_THREADS` to something else, all of them would try to use all available cores.
 
 You can manually check how many available cores there are and then split them accordingly. E.g. if there were 32 cores on a machine and 8 GPUs, you could set OMP_NUM_THREADS to 4.
-
 
 ## Code Changes
 
@@ -176,7 +178,7 @@ This is a helpful thing to do to handle all the processes outputting to the same
 ```diff
 +from torch.nn.parallel import DistributedDataParallel
 
- with device: 
+ with device:
      model = AutoModelForCausalLM.from_config(config, torch_dtype=dtype)
 
 +model = DistributedDataParallel(model, device_ids=[local_rank])
@@ -186,7 +188,7 @@ Funnily enough you might assume that the DDP module splits batches across proces
 
 This is a model wrapper class that ensures **gradients are synchronized before calling optimizer.step()**. I encourage you to read the documentation for this, it's very informative: https://pytorch.org/docs/stable/generated/torch.nn.parallel.DistributedDataParallel.html.
 
-This class also ensures that *model parameters are equal when you construct it*!
+This class also ensures that _model parameters are equal when you construct it_!
 
 It achieves all of this through some [very special model hooks](https://github.com/pytorch/pytorch/blob/v2.4.1/torch/nn/parallel/distributed.py#L939) to sum all the gradients from all the ranks on all the ranks together:
 
@@ -298,7 +300,7 @@ There are other approaches you can use, like grouped wandb runs, which you can r
 ```diff
 +if rank == 0:
      wandb.init(
-         project="distributed-training-guide",
+         project="distrib-training",
          dir=exp_dir,
          name=args.experiment_name,
          id=args.experiment_name,
@@ -356,6 +358,7 @@ Unfortunately the code to save a state dict for ZeRO is exorbitantly slow, so we
 It actually works in much the same way as the single node multi GPU. Since in the single node setting we have multiple processes, now we are just adding extra processes on different machines.
 
 The main differences here to consider are:
+
 1. How to maintain the same environment on every node
 2. How the nodes get in contact with each other (the `rdzv` arguments in the torchrun command)
 3. How each node will access the data

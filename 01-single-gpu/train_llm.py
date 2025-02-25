@@ -108,7 +108,7 @@ def main():
 
     # Initializing [wandb](https://wandb.ai/) - a very useful experiment tracking library.
     wandb.init(
-        project="distributed-training-guide",
+        project="distrib-training",
         dir=exp_dir,
         name=args.experiment_name,
         id=args.experiment_name,
