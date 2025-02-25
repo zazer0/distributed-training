@@ -121,7 +121,7 @@ def main():
 
     if rank == 0:
         wandb.init(
-            project="distributed-training-guide",
+            project="distrib-training",
             dir=exp_dir,
             name=args.experiment_name,
             id=args.experiment_name,
