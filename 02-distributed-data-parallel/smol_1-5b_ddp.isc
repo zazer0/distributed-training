@@ -1,11 +1,11 @@
 isc_project_id = "31d7228d-5508-45f2-920e-9eadafe568b6"
 experiment_name = "02-ddp"
 gpus = 8
-compute_mode = "interruptible"
+compute_mode = "cycle"
 dataset_id_list = ["6c796efa-7063-4a74-99b8-aab1c728ad98"]
 command = '''
 source /root/dist-training/.venv/bin/activate && 
-torchrun --nnodes=$NNODES --nproc-per-node=$N_PROC \
+HF_HOME=/shared/_hf-cache torchrun --nnodes=$NNODES --nproc-per-node=$N_PROC \
 --master_addr=$MASTER_ADDR --master_port=$MASTER_PORT --node_rank=$RANK 
 /root/dist-training/02-distributed-data-parallel/train_llm_ddp.py \
 --experiment-name 02-ddp_$(date +%Y-%m-%dT%H-%M-%S) \
