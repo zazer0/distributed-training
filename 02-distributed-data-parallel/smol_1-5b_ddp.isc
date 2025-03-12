@@ -1,14 +1,14 @@
-isc_project_id = "31d7228d-5508-45f2-920e-9eadafe568b6"
+isc_project_id = "cc754455-f8e0-4605-bb13-23a076fb060b"
 experiment_name = "02-ddp"
-gpus = 8
+gpus = 4
 compute_mode = "cycle"
 dataset_id_list = ["6c796efa-7063-4a74-99b8-aab1c728ad98"]
 command = '''
 source /root/dist-training/.venv/bin/activate && 
-HF_HOME=/shared/_hf-cache torchrun --nnodes=$NNODES --nproc-per-node=$N_PROC \
+WANDB_API_KEY=30ab30f13c80a309cc04ef7d832b92e2c93d70c9 torchrun --nnodes=$NNODES --nproc-per-node=$N_PROC 
 --master_addr=$MASTER_ADDR --master_port=$MASTER_PORT --node_rank=$RANK 
 /root/dist-training/02-distributed-data-parallel/train_llm_ddp.py \
 --experiment-name 02-ddp_$(date +%Y-%m-%dT%H-%M-%S) \
 --dataset-name tatsu-lab/alpaca \
 --model-name DeepSeek-R1-Distill-Qwen-1.5B \
---save-dir /root/_distrib-outputs'''
+--save-dir $OUTPUT_PATH'''
